@@ -95,7 +95,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Configurar credenciais AWS
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/deploy/bruno-891376974889'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -103,13 +103,16 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Validar conta AWS do Bruno
+        if: github.event_name == 'push' && github.ref == 'refs/heads/deploy/bruno-891376974889'
+        run: test "$(aws sts get-caller-identity --query Account --output text)" = "891376974889"
       - name: Login no Amazon ECR
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/deploy/bruno-891376974889'
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Tag e push da imagem
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/deploy/bruno-891376974889'
         run: |
           docker tag ${{ inputs.service-name }}:${{ github.sha }} ${{ steps.ecr-login.outputs.registry }}/${{ inputs.ecr-repository }}:${{ github.sha }}
           docker push ${{ steps.ecr-login.outputs.registry }}/${{ inputs.ecr-repository }}:${{ github.sha }}
@@ -125,12 +128,13 @@ jobs:
 
   gitops:
     name: Atualiza tag no GitOps
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/deploy/bruno-891376974889'
     needs: [docker-build-push]
-    uses: FIAP-Teach-Challenge-2/toggle-master-infra/.github/workflows/gitops-bump.yml@main
+    uses: zBrunoBessa/toggle-master-infra/.github/workflows/gitops-bump.yml@deploy/bruno-891376974889
     with:
       service: ${{ inputs.service-name }}
       image: ${{ needs.docker-build-push.outputs.image }}
       tag: ${{ github.sha }}
+      gitops_ref: deploy/bruno-891376974889
     secrets:
       GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
